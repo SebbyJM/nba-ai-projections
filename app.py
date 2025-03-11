@@ -1,85 +1,110 @@
 import streamlit as st
 import pandas as pd
-import random
 
-# Set title
-st.title("🏀 AI NBA Projections Dashboard")
+st.set_page_config(page_title="NBA AI Projections", layout="wide")
 
-# Load AI projections from CSVs
+# Robotic font and custom colors
+st.markdown("""
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono&display=swap');
+
+html, body, [class*="css"] {
+    font-family: 'JetBrains Mono', monospace;
+}
+
+body {
+    background-color: #000000;
+    color: #FFFFFF;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    color: #FFFFFF;
+}
+
+.stButton>button {
+    background-color: #0E6EB8;
+    color: white;
+}
+
+.stTextInput>div>div>input {
+    background-color: #222;
+    color: #FFF;
+}
+
+table {
+    color: #FFFFFF;
+}
+
+.blue-name {
+    color: #00BFFF !important;
+}
+</style>
+""", unsafe_allow_html=True)
+
 @st.cache_data
 def load_data():
-    rebounds = pd.read_csv("AI_Projections_Rebounds.csv")
-    points = pd.read_csv("AI_Projections_Points.csv")
-    assists = pd.read_csv("AI_Projections_Assists.csv")
-    return rebounds, points, assists
+    files = {
+        "Points": "AI_Projections_Points.csv",
+        "Rebounds": "AI_Projections_Rebounds.csv",
+        "Assists": "AI_Projections_Assists.csv"
+    }
+    dfs = {k: pd.read_csv(v) for k, v in files.items()}
+    return dfs
 
-rebounds_df, points_df, assists_df = load_data()
+data = load_data()
 
-# Sidebar menu
-st.sidebar.header("Navigation")
-page = st.sidebar.radio("Go to", ["📊 AI Projections", "🎯 AI's Best 2-Man Bet", "🔍 Player Lookup"])
+st.title("🤖 NBA AI Projections")
 
-# 1️⃣ **AI Projections Table**
-if page == "📊 AI Projections":
-    st.subheader("📊 AI-Driven Best Picks")
-    category = st.selectbox("Select a category:", ["Points", "Rebounds", "Assists"])
+menu = st.sidebar.selectbox("Choose Option:", ["🔍 Player Search", "🚀 AI Picks Per Category"])
 
-    if category == "Points":
-        st.dataframe(points_df)
-    elif category == "Rebounds":
-        st.dataframe(rebounds_df)
-    else:
-        st.dataframe(assists_df)
-
-# 2️⃣ **AI-Generated Best 2-Man Bet**
-elif page == "🎯 AI's Best 2-Man Bet":
-    st.subheader("🎯 AI’s Top 2-Man Bet Recommendation")
-
-    # Combine all categories into one DataFrame
-    all_data = pd.concat([
-        points_df.assign(category="Points"),
-        rebounds_df.assign(category="Rebounds"),
-        assists_df.assign(category="Assists")
-    ])
-
-    # Select top picks based on AI Edge
-    top_picks = all_data.sort_values(by="AI_Edge", ascending=False).head(10)
-
-    # Choose the best 2-man bet from different categories (if possible)
-    best_bet = []
-    seen_categories = set()
-
-    for _, row in top_picks.iterrows():
-        if row["category"] not in seen_categories:
-            best_bet.append(row)
-            seen_categories.add(row["category"])
-
-        if len(best_bet) == 2:  # Stop once we have two players
-            break
-
-    # Display best bet with reasoning
-    if len(best_bet) == 2:
-        st.write(f"🔥 **Best Bet:** {best_bet[0]['player']} ({best_bet[0]['category']}) & {best_bet[1]['player']} ({best_bet[1]['category']})")
-
-        st.write(f"**Why?**")
-        st.write(f"- **{best_bet[0]['player']}** has an AI edge of **{best_bet[0]['AI_Edge']}**, meaning their projection is well above the betting line.")
-        st.write(f"- **{best_bet[1]['player']}** also stands out with an AI edge of **{best_bet[1]['AI_Edge']}**, making this a strong bet.")
-        
-        # Show selected players in a DataFrame
-        st.dataframe(pd.DataFrame(best_bet))
-    else:
-        st.warning("Not enough top players found for a 2-man bet.")
-
-# 3️⃣ **Player Lookup**
-elif page == "🔍 Player Lookup":
-    st.subheader("🔍 Search for a Player's Data")
-    player_name = st.text_input("Enter player name:")
-
+if menu == "🔍 Player Search":
+    st.header("🔍 Player Search")
+    player_name = st.text_input("Enter Player Name:")
     if player_name:
-        df_list = [rebounds_df, points_df, assists_df]
-        results = pd.concat([df[df["player"].str.contains(player_name, case=False, na=False)] for df in df_list])
-
-        if not results.empty:
-            st.dataframe(results)
+        results = []
+        for cat, df in data.items():
+            player_data = df[df['player'].str.lower() == player_name.lower()]
+            if not player_data.empty:
+                row = player_data.iloc[0]
+                results.append({
+                    "PROP": cat,
+                    "PROJ": f'{row["AI_Projection"]:.1f}'.rstrip('0').rstrip('.'),
+                    "LINE": f'{row["best_point"]:.1f}',
+                    "EDGE": f'{row["AI_Edge"]:.1f}'.rstrip('0').rstrip('.')
+                })
+        if results:
+            result_df = pd.DataFrame(results)
+            st.table(result_df.set_index("PROP"))
         else:
-            st.warning("Player not found. Try another name.")
+            st.warning(f"No data found for {player_name}. Try another name.")
+
+elif menu == "🚀 AI Picks Per Category":
+    st.header("🚀 Best AI Picks Per Category")
+
+    thresholds = {"Points": 18, "Rebounds": 4.5, "Assists": 4.5}
+    best_picks = []
+
+    for cat, df in data.items():
+        threshold = thresholds[cat]
+        df_filtered = df[df["best_point"] >= threshold]
+        df_filtered = df_filtered.sort_values(by="AI_Edge", ascending=False)
+
+        if not df_filtered.empty:
+            best = df_filtered.iloc[0]
+            best_picks.append({
+                "NAME": best["player"],
+                "PROP": cat,
+                "PROJ": f'{best["AI_Projection"]:.1f}'.rstrip('0').rstrip('.'),
+                "LINE": f'{best["best_point"]:.1f}',
+                "EDGE": f'{best["AI_Edge"]:.1f}'.rstrip('0').rstrip('.')
+            })
+
+    if best_picks:
+        best_df = pd.DataFrame(best_picks)
+        
+        def color_name(val):
+            return 'color: #00BFFF' if val in best_df['NAME'].values else 'color: white'
+        
+        st.table(best_df.style.applymap(color_name, subset=['NAME']))
+    else:
+        st.warning("⚠️ No top picks found today. Adjust thresholds or try again later.")
