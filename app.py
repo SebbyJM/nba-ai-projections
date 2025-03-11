@@ -53,7 +53,7 @@ def load_data():
 
 data = load_data()
 
-st.title("🤖 NBA AI Projections")
+st.title("🤖 Solar CTB AI")
 
 menu = st.sidebar.selectbox("Choose Option:", ["🔍 Player Search", "🚀 AI Picks Per Category"])
 

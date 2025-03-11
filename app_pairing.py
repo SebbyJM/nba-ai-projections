@@ -72,3 +72,6 @@ if page == "🎯 AI's Best 2-Man Bet":
 elif page == "🏀 AI Projections":
     st.subheader("📊 AI Projections")
     st.write("Select a category from the sidebar to view AI projections.")
+
+
+
