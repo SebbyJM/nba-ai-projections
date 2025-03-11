@@ -1,0 +1,4 @@
+solar-ai-panel-*.json
+client_secret_*.json
+solar_discord.py
+.env
