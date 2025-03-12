@@ -18,6 +18,7 @@ def process_file(file_path):
 
     # Ensure price column is numeric
     df["price"] = pd.to_numeric(df["price"], errors="coerce")
+    df["point"] = pd.to_numeric(df["point"], errors="coerce")  # Convert point column to float
 
     # Function to extract the best odds
     def get_best_odds(group):
@@ -35,16 +36,12 @@ def process_file(file_path):
     # Apply function to group by player
     cleaned_df = df.groupby("description", group_keys=False).apply(get_best_odds).reset_index(drop=True)
 
-    # Ensure "Best_Point" is correctly formatted
-    def format_point(x):
-        try:
-            return str(int(float(x))) if pd.notna(x) and str(x).replace(".", "", 1).isdigit() else str(x)
-        except ValueError:
-            return str(x)
+    # Ensure "Best_Point" has exactly 1 decimal place
+    cleaned_df["Best_Point"] = cleaned_df["Best_Point"].apply(lambda x: f"{x:.1f}" if pd.notna(x) else "")
 
-    cleaned_df["Best_Over_Odds"] = cleaned_df["Best_Over_Odds"].apply(lambda x: str(int(x)) if pd.notna(x) and x % 1 == 0 else str(x))
-    cleaned_df["Best_Under_Odds"] = cleaned_df["Best_Under_Odds"].apply(lambda x: str(int(x)) if pd.notna(x) and x % 1 == 0 else str(x))
-    cleaned_df["Best_Point"] = cleaned_df["Best_Point"].apply(format_point)
+    # Ensure odds are formatted correctly (integers stay as integers)
+    cleaned_df["Best_Over_Odds"] = cleaned_df["Best_Over_Odds"].apply(lambda x: f"{int(x)}" if pd.notna(x) and x % 1 == 0 else f"{x}")
+    cleaned_df["Best_Under_Odds"] = cleaned_df["Best_Under_Odds"].apply(lambda x: f"{int(x)}" if pd.notna(x) and x % 1 == 0 else f"{x}")
 
     # Generate output file name dynamically
     output_file = f"Cleaned_Best_Odds_{file_path.replace('NBA STATS - ', '').replace('.csv', '')}.csv"
