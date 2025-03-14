@@ -20,3 +20,4 @@ If cross origin resource sharing is required, please disable server.enableXsrfPr
   $ xcode-select --install
   $ pip install watchdog
             
+  Stopping...
